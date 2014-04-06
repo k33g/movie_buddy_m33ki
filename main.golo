@@ -50,9 +50,6 @@ function Preco = |reviews| {
     })
 }
 
-
-
-
 function main = |args| {
 
   initialize(): static("/public"): port(3000)
@@ -112,7 +109,7 @@ function main = |args| {
   GET("/movies/:id", |request, response| {
     response: type("application/json")
     return mapper: writeValueAsString(
-      moviesList: filter(|movie|->
+      moviesList: filter(|movie| ->
         movie: get("_id"): toString(): equals(request: params(":id"): toString()))
     )
   })
@@ -122,7 +119,7 @@ function main = |args| {
     let title = request: params(":title"): toString()
     let limit = request: params(":limit"): toString(): toInteger()
     return mapper: writeValueAsString(
-      moviesList: filter(|movie|->
+      moviesList: filter(|movie| ->
         movie: get("Title"): toString(): toLowerCase(): contains(title)): extract(0, limit)
     )
   })
@@ -132,7 +129,7 @@ function main = |args| {
     let genre = request: params(":genre"): toString()
     let limit = request: params(":limit"): toString(): toInteger()
     return mapper: writeValueAsString(
-      moviesList: filter(|movie|->
+      moviesList: filter(|movie| ->
         movie: get("Genre"): toString(): toLowerCase(): contains(genre)): extract(0, limit)
     )
   })
@@ -142,7 +139,7 @@ function main = |args| {
     let actors = request: params(":actors"): toString()
     let limit = request: params(":limit"): toString(): toInteger()
     return mapper: writeValueAsString(
-      moviesList: filter(|movie|->
+      moviesList: filter(|movie| ->
         movie: get("Actors"): toString(): toLowerCase(): contains(actors)): extract(0, limit)
     )
   })
@@ -155,7 +152,7 @@ function main = |args| {
   GET("/users/:id", |request, response| {
     response: type("application/json")
     return mapper: writeValueAsString(
-      usersList: filter(|user|->
+      usersList: filter(|user| ->
         user: get("_id"): toString(): equals(request: params(":id"): toString())
       ))
   })
@@ -165,7 +162,7 @@ function main = |args| {
     let name = request: params(":name"): toString()
     let limit = request: params(":limit"): toString(): toInteger()
     return mapper: writeValueAsString(
-      usersList: filter(|user|->
+      usersList: filter(|user| ->
         user: get("name"): toString(): toLowerCase(): contains(name)): extract(0, limit)
     )
   })
