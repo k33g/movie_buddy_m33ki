@@ -52,7 +52,7 @@ function main = |args| {
     #let rate =  Json(): toTreeMap(request: body())
     let rate = mapper: treeToValue(mapper: readValue(request: body(), com.fasterxml.jackson.databind.JsonNode.class), java.util.TreeMap.class)
 
-    response: status(201) # 201: created
+    #response: status(201) # 201: created
     #header ???
     let userRates = ratings: get(rate: get("userId"))
 
