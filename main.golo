@@ -1,19 +1,7 @@
 module main
 
 import m33ki.spark
-import m33ki.hot # requisite for "hot reloading"
-import m33ki.jackson
-
 import java.io.File
-
-struct vo = { value }
-
-augment vo {
-	function add = |this, n| {
-    this: value(this: value() + n)
-		return this
-	}
-}
 
 augment java.util.ArrayList {
   function extract = |this, start, end| {
@@ -25,35 +13,29 @@ augment java.util.ArrayList {
   }
 }
 
-function Preco = |reviews| {
-  return DynamicObject()
-    : reviews(reviews)
-    : sharedPreferences(|this, user1, user2| ->
-        this: reviews(): get(user1)
-          : filter(|film, notation| -> this: reviews(): get(user2): get(film) isnt null)
-          : keySet()
-    )
-    : distance(|this, user1, user2| { # Euclidean distance
-        let shared_preferences = this: sharedPreferences(user1, user2)
-        let sum_of_squares = vo(0)
-        if shared_preferences: isEmpty() { return 0 }
+function sharedPreferences = |reviews, user1, user2| ->
+  reviews: get(user1)
+    : filter(|film, notation| -> reviews: get(user2): get(film) isnt null)
+    : keySet()
 
-        shared_preferences: each(|film| {
-          sum_of_squares: add(
-            java.lang.Math.pow(
-              this: reviews(): get(user1): get(film): doubleValue() - this: reviews(): get(user2): get(film): doubleValue()
-              , 2.0
-            )
-          )
-        })
-        return 1/(1 + java.lang.Math.sqrt(sum_of_squares: value()))
-    })
+function distance = |reviews, user1, user2| {
+  let shared_preferences = sharedPreferences(reviews, user1, user2)
+  let sum_of_squares = map[[0,0.0]]
+  if shared_preferences: isEmpty() { return 0.0 }
+
+  shared_preferences: each(|film| {
+    sum_of_squares: put(0, sum_of_squares: get(0) +
+      java.lang.Math.pow(
+        reviews: get(user1): get(film): doubleValue() - reviews: get(user2): get(film): doubleValue()
+        , 2.0
+      ))
+  })
+  return 1/(1 + java.lang.Math.sqrt(sum_of_squares: get(0)))
 }
 
 function main = |args| {
 
   initialize(): static("/public"): port(3000)
-  #listen(true) # listen to change, then compile java file
 
   let ratings = map[]
 
@@ -62,10 +44,14 @@ function main = |args| {
   let moviesList = mapper: readValue(File(path + "/json/movies.json"), java.util.List.class)
   let usersList = mapper: readValue(File(path + "/json/users.json"), java.util.List.class)
 
+  let jsonMoviesList = mapper: writeValueAsString(moviesList)
+  let jsonUsersList = mapper: writeValueAsString(usersList)
 
   POST("/rates", |request, response| {
     response: type("application/json")
-    let rate =  Json(): toTreeMap(request: body())
+    #let rate =  Json(): toTreeMap(request: body())
+    let rate = mapper: treeToValue(mapper: readValue(request: body(), com.fasterxml.jackson.databind.JsonNode.class), java.util.TreeMap.class)
+
     response: status(201) # 201: created
     #header ???
     let userRates = ratings: get(rate: get("userId"))
@@ -75,7 +61,11 @@ function main = |args| {
     } else {
       ratings: get(rate: get("userId")): put(rate: get("movieId"), rate: get("rate"))
     }
-    return Json(): toJsonString(rate)
+
+    response: redirect("/rates/"+rate: get("userId"): toString(),301)
+
+    #return mapper: writeValueAsString(rate)
+    #return Json(): toJsonString(rate)
   })
 
   GET("/rates/:userid1", |request, response| {
@@ -89,21 +79,21 @@ function main = |args| {
     response: type("application/json")
     let userid1 = request: params(":userid1"): toInteger()
     let userid2 = request: params(":userid2"): toInteger()
-    let preco = Preco(ratings)
-    return mapper: writeValueAsString(preco: sharedPreferences(userid1, userid2))
+
+    return mapper: writeValueAsString(sharedPreferences(ratings, userid1, userid2))
   })
 
   GET("/users/distance/:userid1/:userid2", |request, response| {
     response: type("application/json")
     let userid1 = request: params(":userid1"): toInteger()
     let userid2 = request: params(":userid2"): toInteger()
-    let preco = Preco(ratings)
-    return mapper: writeValueAsString(map[["distance", preco: distance(userid1, userid2)]])
+
+    return mapper: writeValueAsString(map[["distance", distance(ratings, userid1, userid2)]])
   })
 
   GET("/movies", |request, response| {
     response: type("application/json")
-    return mapper: writeValueAsString(moviesList)
+    return jsonMoviesList
   })
 
   GET("/movies/:id", |request, response| {
@@ -146,7 +136,7 @@ function main = |args| {
 
   GET("/users", |request, response| {
     response: type("application/json")
-    return mapper: writeValueAsString(usersList)
+    return jsonUsersList
   })
 
   GET("/users/:id", |request, response| {
@@ -166,6 +156,5 @@ function main = |args| {
         user: get("name"): toString(): toLowerCase(): contains(name)): extract(0, limit)
     )
   })
-
 
 }
